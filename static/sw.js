@@ -1,4 +1,4 @@
-const CACHE = 'emtia-v1';
+const CACHE = 'emtia-v2';
 const STATIC = ['/static/style.css'];
 
 self.addEventListener('install', e => {
