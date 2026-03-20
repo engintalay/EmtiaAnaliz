@@ -1,64 +1,57 @@
 import pandas as pd
-import pandas_ta as ta
+import ta
 
 
 def calculate(df: pd.DataFrame) -> dict:
-    """Tüm teknik göstergeleri hesaplar, özet dict döner."""
     if df.empty or len(df) < 20:
         return {"hata": "Yeterli veri yok"}
 
-    close = df["close"]
-    high = df["high"]
-    low = df["low"]
+    close  = df["close"]
+    high   = df["high"]
+    low    = df["low"]
     volume = df["volume"]
 
-    # Göstergeler
-    df["rsi"] = ta.rsi(close, length=14)
-    macd = ta.macd(close, fast=12, slow=26, signal=9)
-    if macd is not None:
-        df = pd.concat([df, macd], axis=1)
-    bb = ta.bbands(close, length=20)
-    if bb is not None:
-        df = pd.concat([df, bb], axis=1)
-    df["ema9"]   = ta.ema(close, length=9)
-    df["ema21"]  = ta.ema(close, length=21)
-    df["ema50"]  = ta.ema(close, length=50)
-    df["sma200"] = ta.sma(close, length=200)
+    # RSI
+    df["rsi"] = ta.momentum.RSIIndicator(close, window=14).rsi()
+
+    # MACD
+    macd_ind = ta.trend.MACD(close, window_fast=12, window_slow=26, window_sign=9)
+    df["macd"]        = macd_ind.macd()
+    df["macd_signal"] = macd_ind.macd_signal()
+    df["macd_hist"]   = macd_ind.macd_diff()
+
+    # Bollinger
+    bb = ta.volatility.BollingerBands(close, window=20)
+    df["bb_upper"] = bb.bollinger_hband()
+    df["bb_lower"] = bb.bollinger_lband()
+
+    # EMA / SMA
+    df["ema9"]   = ta.trend.EMAIndicator(close, window=9).ema_indicator()
+    df["ema21"]  = ta.trend.EMAIndicator(close, window=21).ema_indicator()
+    df["ema50"]  = ta.trend.EMAIndicator(close, window=50).ema_indicator()
+    df["sma200"] = ta.trend.SMAIndicator(close, window=200).sma_indicator()
 
     last = df.iloc[-1]
     current_price = float(last["close"])
 
-    # Destek / Direnç (son 30 günün min/max)
-    recent = df.tail(30)
+    # Destek / Direnç
+    recent     = df.tail(30)
     support    = float(recent["low"].min())
     resistance = float(recent["high"].max())
 
     # RSI yorumu
-    rsi_val = float(last.get("rsi", 50))
-    if rsi_val > 70:
-        rsi_yorum = "Aşırı alım bölgesi"
-    elif rsi_val < 30:
-        rsi_yorum = "Aşırı satım bölgesi"
-    else:
-        rsi_yorum = "Nötr"
+    rsi_val = float(last["rsi"]) if pd.notna(last["rsi"]) else 50
+    rsi_yorum = "Aşırı alım bölgesi" if rsi_val > 70 else ("Aşırı satım bölgesi" if rsi_val < 30 else "Nötr")
 
-    # MACD sütun adları pandas-ta formatında
-    macd_col   = [c for c in df.columns if c.startswith("MACD_")]
-    signal_col = [c for c in df.columns if c.startswith("MACDs_")]
-    macd_val   = float(last[macd_col[0]])   if macd_col   else 0
-    signal_val = float(last[signal_col[0]]) if signal_col else 0
+    # MACD yorumu
+    macd_val   = float(last["macd"])        if pd.notna(last["macd"])        else 0
+    signal_val = float(last["macd_signal"]) if pd.notna(last["macd_signal"]) else 0
     macd_yorum = "Yükseliş sinyali" if macd_val > signal_val else "Düşüş sinyali"
 
-    # Bollinger
-    bb_upper = [c for c in df.columns if c.startswith("BBU_")]
-    bb_lower = [c for c in df.columns if c.startswith("BBL_")]
-    bb_upper_val = float(last[bb_upper[0]]) if bb_upper else None
-    bb_lower_val = float(last[bb_lower[0]]) if bb_lower else None
-
-    # Trend (EMA9 > EMA21 > EMA50)
-    ema9  = float(last.get("ema9",  0) or 0)
-    ema21 = float(last.get("ema21", 0) or 0)
-    ema50 = float(last.get("ema50", 0) or 0)
+    # Trend
+    ema9  = float(last["ema9"])  if pd.notna(last["ema9"])  else 0
+    ema21 = float(last["ema21"]) if pd.notna(last["ema21"]) else 0
+    ema50 = float(last["ema50"]) if pd.notna(last["ema50"]) else 0
     if ema9 > ema21 > ema50:
         trend = "Güçlü Yükseliş Trendi"
     elif ema9 < ema21 < ema50:
@@ -66,26 +59,26 @@ def calculate(df: pd.DataFrame) -> dict:
     else:
         trend = "Yatay / Karışık"
 
-    # Hacim değişimi
-    avg_vol = float(volume.tail(20).mean())
+    # Hacim
+    avg_vol  = float(volume.tail(20).mean())
     last_vol = float(volume.iloc[-1])
     hacim_yorum = "Ortalamanın üzerinde" if last_vol > avg_vol else "Ortalamanın altında"
 
     return {
-        "fiyat": current_price,
-        "rsi": round(rsi_val, 2),
-        "rsi_yorum": rsi_yorum,
-        "macd": round(macd_val, 4),
+        "fiyat":       current_price,
+        "rsi":         round(rsi_val, 2),
+        "rsi_yorum":   rsi_yorum,
+        "macd":        round(macd_val, 4),
         "macd_sinyal": round(signal_val, 4),
-        "macd_yorum": macd_yorum,
-        "bb_ust": round(bb_upper_val, 4) if bb_upper_val else None,
-        "bb_alt": round(bb_lower_val, 4) if bb_lower_val else None,
-        "ema9": round(ema9, 4),
-        "ema21": round(ema21, 4),
-        "ema50": round(ema50, 4),
-        "destek": round(support, 4),
-        "direnc": round(resistance, 4),
-        "trend": trend,
+        "macd_yorum":  macd_yorum,
+        "bb_ust":      round(float(last["bb_upper"]), 4) if pd.notna(last["bb_upper"]) else None,
+        "bb_alt":      round(float(last["bb_lower"]), 4) if pd.notna(last["bb_lower"]) else None,
+        "ema9":        round(ema9, 4),
+        "ema21":       round(ema21, 4),
+        "ema50":       round(ema50, 4),
+        "destek":      round(support, 4),
+        "direnc":      round(resistance, 4),
+        "trend":       trend,
         "hacim_yorum": hacim_yorum,
-        "df": df,  # grafik için
+        "df":          df,
     }

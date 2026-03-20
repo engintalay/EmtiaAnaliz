@@ -29,11 +29,9 @@ def create_chart(df: pd.DataFrame, symbol: str) -> str:
             fig.add_trace(go.Scatter(x=df.index, y=df[col], line=dict(color=color, width=1), name=name), row=1, col=1)
 
     # Bollinger Bands
-    bb_upper = [c for c in df.columns if c.startswith("BBU_")]
-    bb_lower = [c for c in df.columns if c.startswith("BBL_")]
-    if bb_upper and bb_lower:
-        fig.add_trace(go.Scatter(x=df.index, y=df[bb_upper[0]], line=dict(color="gray", width=1, dash="dot"), name="BB Üst"), row=1, col=1)
-        fig.add_trace(go.Scatter(x=df.index, y=df[bb_lower[0]], line=dict(color="gray", width=1, dash="dot"), name="BB Alt", fill="tonexty", fillcolor="rgba(128,128,128,0.1)"), row=1, col=1)
+    if "bb_upper" in df.columns and "bb_lower" in df.columns:
+        fig.add_trace(go.Scatter(x=df.index, y=df["bb_upper"], line=dict(color="gray", width=1, dash="dot"), name="BB Üst"), row=1, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df["bb_lower"], line=dict(color="gray", width=1, dash="dot"), name="BB Alt", fill="tonexty", fillcolor="rgba(128,128,128,0.1)"), row=1, col=1)
 
     # RSI
     if "rsi" in df.columns:
@@ -42,16 +40,13 @@ def create_chart(df: pd.DataFrame, symbol: str) -> str:
         fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
 
     # MACD
-    macd_col   = [c for c in df.columns if c.startswith("MACD_") and not c.startswith("MACDs_") and not c.startswith("MACDh_")]
-    signal_col = [c for c in df.columns if c.startswith("MACDs_")]
-    hist_col   = [c for c in df.columns if c.startswith("MACDh_")]
-    if macd_col:
-        fig.add_trace(go.Scatter(x=df.index, y=df[macd_col[0]], line=dict(color="#3498db", width=1.5), name="MACD"), row=3, col=1)
-    if signal_col:
-        fig.add_trace(go.Scatter(x=df.index, y=df[signal_col[0]], line=dict(color="#e74c3c", width=1.5), name="Sinyal"), row=3, col=1)
-    if hist_col:
-        colors = ["#26a69a" if v >= 0 else "#ef5350" for v in df[hist_col[0]].fillna(0)]
-        fig.add_trace(go.Bar(x=df.index, y=df[hist_col[0]], marker_color=colors, name="Histogram"), row=3, col=1)
+    if "macd" in df.columns:
+        fig.add_trace(go.Scatter(x=df.index, y=df["macd"],        line=dict(color="#3498db", width=1.5), name="MACD"),   row=3, col=1)
+    if "macd_signal" in df.columns:
+        fig.add_trace(go.Scatter(x=df.index, y=df["macd_signal"], line=dict(color="#e74c3c", width=1.5), name="Sinyal"), row=3, col=1)
+    if "macd_hist" in df.columns:
+        colors = ["#26a69a" if v >= 0 else "#ef5350" for v in df["macd_hist"].fillna(0)]
+        fig.add_trace(go.Bar(x=df.index, y=df["macd_hist"], marker_color=colors, name="Histogram"), row=3, col=1)
 
     fig.update_layout(
         template="plotly_dark",

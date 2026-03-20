@@ -3,7 +3,7 @@ uvicorn
 yfinance
 ccxt
 pandas
-pandas-ta
+ta
 plotly
 requests
 python-multipart
