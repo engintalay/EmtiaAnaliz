@@ -12,7 +12,7 @@ def get_models(base_url: str) -> list[str]:
         return []
 
 
-async def analyze(symbol: str, indicators: dict, base_url: str, model: str) -> str:
+async def analyze(symbol: str, indicators: dict, base_url: str, model: str, thinking: bool = False) -> str:
     system_prompt = (
         "Sen deneyimli bir Türk finans analistisin. "
         "Yanıtlarını YALNIZCA Türkçe yaz, kesinlikle başka dil kullanma. "
@@ -43,6 +43,8 @@ Bu verilere göre detaylı Türkçe analiz yap ve AL / SAT / BEKLE tavsiyeni aç
         "temperature": 0.3,
         "max_tokens": 1024,
     }
+    if not thinking:
+        payload["thinking"] = {"type": "disabled"}  # LMStudio / bazı modeller destekler
 
     try:
         async with httpx.AsyncClient(timeout=TIMEOUT) as client:

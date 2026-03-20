@@ -46,7 +46,8 @@ async def analyze(
     symbol: str = Form(...),
     base_url: str = Form("http://localhost:1234"),
     model: str = Form(...),
-    form_params: str = Form("{}"),   # JSON string
+    form_params: str = Form("{}"),
+    thinking: bool = Form(False),
     file: UploadFile = File(None),
 ):
     raw_input = symbol
@@ -87,7 +88,7 @@ async def analyze(
         chart_html = chart.create_chart(df_ind, symbol, used_params)
         param_info = param_parser.params_summary(used_params)
 
-        yorum = await llm.analyze(symbol, indicators, base_url, model)
+        yorum = await llm.analyze(symbol, indicators, base_url, model, thinking=thinking)
         log.info(f"LLM   | {symbol} | {len(yorum)} karakter")
 
         history.save(symbol, indicators, yorum)

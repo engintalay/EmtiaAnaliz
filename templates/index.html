@@ -36,6 +36,11 @@
         <button id="saveSettings">Kaydet</button>
       </div>
 
+      <label style="flex-direction:row;align-items:center;gap:10px;margin-top:4px">
+        <input id="thinkingToggle" type="checkbox" style="width:20px;height:20px;accent-color:var(--accent)">
+        <span style="color:var(--text);font-size:15px">Düşünme süreci (Thinking)</span>
+      </label>
+
       <hr style="border-color:#2a2a4a;margin-bottom:14px">
       <h3 style="margin-bottom:12px">📐 Analiz Parametreleri</h3>
 
@@ -118,6 +123,8 @@ function getFormParams() {
     ema_periods: document.getElementById('p_ema').value.split(',').map(x => parseInt(x.trim())).filter(Boolean),
   };
 }
+// Thinking toggle başlangıç değeri
+document.getElementById('thinkingToggle').checked = localStorage.getItem('thinking') === '1';
 loadParamUI();
 
 function openSettings()  { settingsPanel.style.display = 'flex'; }
@@ -129,6 +136,7 @@ settingsPanel.onclick = e => { if (e.target === settingsPanel) closeSettings(); 
 document.getElementById('saveSettings').onclick = () => {
   localStorage.setItem('lmUrl', lmUrl.value);
   localStorage.setItem('model', modelSelect.value);
+  localStorage.setItem('thinking', document.getElementById('thinkingToggle').checked ? '1' : '0');
   closeSettings();
   addMsg('system', '✅ Ayarlar kaydedildi.');
 };
@@ -170,11 +178,17 @@ function addAnalysis(data) {
   // Parametre bilgisi
   if (data.param_info) addMsg('system', data.param_info);
 
-  // Grafik
-  const chartDiv = document.createElement('div');
-  chartDiv.className = 'msg bot chart-container';
-  chartDiv.innerHTML = data.chart;
-  chat.appendChild(chartDiv);
+  // Grafik — innerHTML script'leri çalıştırmaz, blob URL ile iframe kullan
+  const blob = new Blob([data.chart], {type: 'text/html'});
+  const url  = URL.createObjectURL(blob);
+  const wrap = document.createElement('div');
+  wrap.className = 'msg bot chart-container';
+  const iframe = document.createElement('iframe');
+  iframe.src = url;
+  iframe.style.cssText = 'width:100%;height:420px;border:none;border-radius:8px;background:#16213e';
+  iframe.onload = () => URL.revokeObjectURL(url);
+  wrap.appendChild(iframe);
+  chat.appendChild(wrap);
 
   // Göstergeler tablosu
   const ind = data.indicators;
@@ -221,6 +235,7 @@ async function send() {
   form.append('base_url', localStorage.getItem('lmUrl') || 'http://localhost:1234');
   form.append('model', model);
   form.append('form_params', JSON.stringify(getFormParams()));
+  form.append('thinking', localStorage.getItem('thinking') === '1' ? 'true' : 'false');
   if (selectedFile) { form.append('file', selectedFile); selectedFile = null; csvFile.value = ''; }
 
   try {
