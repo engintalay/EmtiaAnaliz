@@ -15,7 +15,7 @@ LMStudio tabanlı Türkçe sohbet botu. Mobil uyumlu PWA.
 | Veri (hisse/emtia) | Yahoo Finance Query API (httpx, direkt HTTP) | yfinance kütüphanesi bloklanıyordu |
 | Veri (kripto) | CoinGecko REST API | Ücretsiz, geniş kapsam |
 | Teknik Analiz | ta (pandas-ta değil) | Python 3.14 uyumlu, numba bağımlılığı yok |
-| Grafik | Plotly → iframe embed | innerHTML ile script çalışmıyor, iframe çözüm |
+| Grafik | Plotly → iframe srcdoc | blob URL mobilde çalışmıyor, srcdoc çözüm |
 | LLM | LMStudio (local) OpenAI-compat API | httpx async client |
 | LLM Streaming | SSE (Server-Sent Events) | Token token canlı akış |
 | Frontend | HTML/CSS/JS (vanilla) | Sade, hızlı, mobil uyumlu |
@@ -61,12 +61,13 @@ EmtiaAnaliz/
 ├── static/
 │   ├── style.css        # Mobile-first CSS
 │   ├── manifest.json    # PWA manifest
-│   ├── sw.js            # Service Worker
+│   ├── sw.js            # Service Worker (cache: emtia-v2)
 │   └── icons/           # PWA ikonları (192, 512px)
 ├── data/
 │   └── history.json     # Analiz geçmişi (otomatik oluşur)
 ├── logs/                # Günlük log dosyaları (gitignore'da)
 ├── MEMORY.md            # Bu dosya
+├── README.md            # Kullanıcı dokümantasyonu
 ├── install.sh           # Kurulum scripti
 ├── start.sh             # Başlatma scripti
 ├── .gitignore
@@ -78,10 +79,10 @@ EmtiaAnaliz/
 ## Özellikler
 
 ### Veri Kaynakları
-- **Kripto**: CoinGecko API (ücretsiz) — BTC, ETH, BNB, SOL, XRP, DOGE, ADA, AVAX, DOT, MATIC, LTC, LINK, UNI, ATOM, TRX
+- **Kripto**: CoinGecko API — BTC, ETH, BNB, SOL, XRP, DOGE, ADA, AVAX, DOT, MATIC, LTC, LINK, UNI, ATOM, TRX
 - **Hisse/Emtia**: Yahoo Finance Query API (direkt HTTP, User-Agent ile)
 - **Takma adlar**: ALTIN→GC=F, PETROL→CL=F, BRENT→BZ=F, GUMUS→SI=F, BIST100→XU100.IS, DOLAR→USDTRY=X vb.
-- **Fallback**: Kullanıcı CSV yükleyebilir
+- **Fallback**: Kullanıcı CSV yükleyebilir (📎 butonu)
 
 ### Teknik Analiz (Parametrik)
 - RSI (varsayılan: 14)
@@ -95,13 +96,15 @@ EmtiaAnaliz/
 ### Parametre Değiştirme
 - **Ayarlar panelinden**: Form alanları (RSI, MACD, BB, EMA, gün sayısı)
 - **Serbest metinden**: "RSI 21 olsun", "180 günlük analiz", "EMA 9 21 100 200"
-- Parametreler localStorage'a kaydedilir
+- Parametreler localStorage'a kaydedilir, refresh'te korunur
 
 ### LLM Entegrasyonu
 - LMStudio OpenAI-compat API: `http://localhost:1234/v1`
-- Model seçimi: Ayarlar panelinden `/v1/models` otomatik listelenir
+- Model seçimi: Ayarlar panelinden `/v1/models` otomatik listelenir, localStorage'a kaydedilir
 - **Streaming**: Token token canlı akış (SSE)
-- **Thinking (düşünme süreci)**: Varsayılan KAPALI, ayarlardan açılabilir
+- **Thinking**: Varsayılan KAPALI, ayarlardan açılabilir
+  - Açıkken: `<think>` bloğu "🧠 Düşünüyor..." olarak gösterilir, tıklanınca açılır/kapanır
+  - Kapalıyken: `<think>` bloğu tamamen gizlenir
 - Sistem prompt: Türkçe finans analisti rolü, YALNIZCA Türkçe yanıt
 - Timeout: 600 saniye (10 dakika)
 
@@ -109,9 +112,10 @@ EmtiaAnaliz/
 - Mobile-first responsive tasarım
 - Alt sabit input bar (iOS safe-area uyumlu)
 - Sohbet baloncukları
-- Grafikler iframe içinde (Plotly interaktif)
-- ⚙️ Ayarlar: bottom-sheet (mobil) / modal (masaüstü)
+- Grafikler iframe srcdoc içinde (Plotly interaktif, mobil uyumlu)
+- ⚙️ Ayarlar: bottom-sheet (mobil) / modal (masaüstü), refresh'te kapalı başlar
 - PWA: Android "Ana ekrana ekle" / iOS Safari paylaş → ekle
+- Tüm ayarlar localStorage'da kalıcı
 
 ### Loglama
 - Dosya: `logs/YYYY-MM-DD.log` (günlük)
@@ -146,10 +150,12 @@ Telefon erişimi: `http://BILGISAYAR_IP:8000` (aynı ağda)
 
 ## Bilinen Sorunlar / Notlar
 - Yahoo Finance direkt HTTP ile çalışıyor (yfinance kütüphanesi değil)
-- Plotly grafikleri `innerHTML` ile eklenince script çalışmıyor → iframe çözümü kullanıldı
-- CSS ID seçici (`#settingsPanel`) class seçiciden (`.hidden`) daha yüksek öncelik → `style.display` ile kontrol edildi
+- Plotly grafikleri `innerHTML` ile eklenince script çalışmıyor → iframe srcdoc çözümü
+- blob URL mobil tarayıcılarda güvenlik kısıtlaması → srcdoc kullanıldı
+- CSS ID seçici (`#settingsPanel`) class seçiciden (`.hidden`) daha yüksek öncelik → `style.display` ile kontrol
 - Python 3.14 üzerinde çalışıyor (pandas-ta/numba uyumsuz, ta kütüphanesi kullanıldı)
 - Paralel istek desteği: veri çekme `asyncio.to_thread`, LLM `httpx async`
+- Service worker cache versiyonu: `emtia-v2`
 
 ---
 
@@ -170,6 +176,10 @@ Telefon erişimi: `http://BILGISAYAR_IP:8000` (aynı ağda)
 | 2026-03-20 | Yahoo Finance Query API (yfinance yerine) — ALTIN/BRENT/hisse düzeltildi |
 | 2026-03-20 | Paralel istek: asyncio.to_thread + httpx async |
 | 2026-03-20 | Thinking toggle (varsayılan kapalı) |
-| 2026-03-20 | Grafik iframe ile gösterildi (script sorunu çözüldü) |
+| 2026-03-20 | Grafik iframe srcdoc ile gösterildi (blob URL mobilde çalışmıyor) |
 | 2026-03-20 | LLM streaming (SSE, token token canlı akış) |
 | 2026-03-20 | Ayarlar paneli CSS specificity sorunu düzeltildi |
+| 2026-03-20 | Think bloğu açılıp kapanabilir, stream sırasında "Düşünüyor..." gösterilir |
+| 2026-03-20 | Refresh sonrası ayarlar ve model korunuyor (localStorage) |
+| 2026-03-20 | Ayarlar paneli refresh'te kapalı başlıyor (style.display=none) |
+| 2026-03-20 | README.md eklendi |
