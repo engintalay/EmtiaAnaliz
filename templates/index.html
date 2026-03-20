@@ -84,6 +84,19 @@ lmUrl.value = localStorage.getItem('lmUrl') || 'http://localhost:1234';
 const savedModel = localStorage.getItem('model') || '';
 
 // Parametreleri yükle
+const PARAM_DEFAULTS = {
+  rsi_period: 14, bb_period: 20,
+  macd_fast: 12, macd_slow: 26, macd_signal: 9,
+  days: 90, ema_periods: [9, 21, 50]
+};
+
+function getSavedParams() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('params') || '{}');
+    return { ...PARAM_DEFAULTS, ...saved };
+  } catch { return { ...PARAM_DEFAULTS }; }
+}
+
 function loadParamUI() {
   const p = getSavedParams();
   document.getElementById('p_rsi').value  = p.rsi_period;
@@ -92,10 +105,7 @@ function loadParamUI() {
   document.getElementById('p_ms').value   = p.macd_slow;
   document.getElementById('p_msig').value = p.macd_signal;
   document.getElementById('p_days').value = p.days;
-  document.getElementById('p_ema').value  = p.ema_periods.join(',');
-}
-function getSavedParams() {
-  try { return JSON.parse(localStorage.getItem('params') || '{}'); } catch { return {}; }
+  document.getElementById('p_ema').value  = (p.ema_periods || [9,21,50]).join(',');
 }
 function getFormParams() {
   return {
@@ -110,22 +120,22 @@ function getFormParams() {
 }
 loadParamUI();
 
-settingsBtn.onclick = () => {
-  const isHidden = settingsPanel.style.display === 'none' || settingsPanel.style.display === '';
-  settingsPanel.style.display = isHidden ? 'flex' : 'none';
-};
-settingsPanel.onclick = e => { if (e.target === settingsPanel) settingsPanel.style.display = 'none'; };
+function openSettings()  { settingsPanel.style.display = 'flex'; }
+function closeSettings() { settingsPanel.style.display = 'none'; }
+
+settingsBtn.onclick = () => settingsPanel.style.display === 'flex' ? closeSettings() : openSettings();
+settingsPanel.onclick = e => { if (e.target === settingsPanel) closeSettings(); };
 
 document.getElementById('saveSettings').onclick = () => {
   localStorage.setItem('lmUrl', lmUrl.value);
   localStorage.setItem('model', modelSelect.value);
-  settingsPanel.style.display = 'none';
+  closeSettings();
   addMsg('system', '✅ Ayarlar kaydedildi.');
 };
 
 document.getElementById('saveParams').onclick = () => {
   localStorage.setItem('params', JSON.stringify(getFormParams()));
-  settingsPanel.style.display = 'none';
+  closeSettings();
   addMsg('system', '✅ Parametreler kaydedildi.');
 };
 

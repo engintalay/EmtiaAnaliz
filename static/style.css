@@ -199,6 +199,13 @@ header button {
 /* ── Tablet / Desktop ── */
 @media (min-width: 600px) {
   .msg { max-width: 80%; font-size: 15px; }
-  .settings-box { border-radius: 16px; max-width: 480px; margin: auto; }
-  #settingsPanel { align-items: center; }
+  #settingsPanel { align-items: center; justify-content: center; }
+  .settings-box {
+    border-radius: 16px;
+    border-top: 1px solid var(--border);
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    width: 100%;
+  }
 }
