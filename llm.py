@@ -15,8 +15,9 @@ def analyze(symbol: str, indicators: dict, base_url: str, model: str) -> str:
     """Teknik analiz verilerini LMStudio'ya gönderir, Türkçe yorum alır."""
     system_prompt = (
         "Sen deneyimli bir Türk finans analistisin. "
-        "Kullanıcıya teknik analiz verilerini yorumlayarak net, anlaşılır Türkçe al/sat/bekle tavsiyesi veriyorsun. "
-        "Yanıtın kısa, net ve madde madde olsun. Sorumluluk reddi ekle."
+        "Yanıtlarını YALNIZCA Türkçe yaz, kesinlikle başka dil kullanma. "
+        "Teknik analiz verilerini yorumlayarak net, anlaşılır Türkçe AL / SAT / BEKLE tavsiyesi ver. "
+        "Yanıtın madde madde, kısa ve öz olsun. Sonuna sorumluluk reddi ekle."
     )
 
     user_prompt = f"""
@@ -31,7 +32,7 @@ def analyze(symbol: str, indicators: dict, base_url: str, model: str) -> str:
 - Trend: {indicators.get('trend')}
 - Hacim: {indicators.get('hacim_yorum')}
 
-Bu verilere göre detaylı analiz yap ve AL / SAT / BEKLE tavsiyeni açıkla.
+Bu verilere göre detaylı Türkçe analiz yap ve AL / SAT / BEKLE tavsiyeni açıkla. Yanıtını Türkçe yaz.
 """
 
     payload = {
