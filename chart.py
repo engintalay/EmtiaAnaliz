@@ -65,4 +65,4 @@ def create_chart(df: pd.DataFrame, symbol: str, params: dict = None) -> str:
         autosize=True,
     )
 
-    return fig.to_html(full_html=False, include_plotlyjs="cdn", config={"responsive": True})
+    return fig.to_html(full_html=True, include_plotlyjs="/static/plotly.min.js", config={"responsive": True})

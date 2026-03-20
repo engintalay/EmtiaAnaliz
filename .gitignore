@@ -14,5 +14,5 @@ logs/
 .vscode/
 .idea/
 
-# OS
-.DS_Store
+# Büyük statik dosyalar
+static/plotly.min.js
