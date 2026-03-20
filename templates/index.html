@@ -175,10 +175,9 @@ function addMsg(role, content, isHtml = false) {
 }
 
 function addAnalysis(data) {
-  // Parametre bilgisi
   if (data.param_info) addMsg('system', data.param_info);
 
-  // Grafik — innerHTML script'leri çalıştırmaz, blob URL ile iframe kullan
+  // Grafik — iframe ile
   const blob = new Blob([data.chart], {type: 'text/html'});
   const url  = URL.createObjectURL(blob);
   const wrap = document.createElement('div');
@@ -196,8 +195,7 @@ function addAnalysis(data) {
   const emaRows = (p.ema_periods || [9,21,50]).map(ep =>
     `<tr><td>EMA${ep}</td><td>${(ind[`ema${ep}`] || 0).toFixed(4)}</td></tr>`
   ).join('');
-
-  const table = `
+  chat.insertAdjacentHTML('beforeend', `
     <div class="msg bot">
       <b>📊 ${data.symbol} Teknik Göstergeler</b>
       <table class="ind-table">
@@ -212,40 +210,88 @@ function addAnalysis(data) {
         <tr><td>Direnç</td><td>${ind.direnc}</td></tr>
         <tr><td>Hacim</td><td>${ind.hacim_yorum}</td></tr>
       </table>
-    </div>`;
-  chat.insertAdjacentHTML('beforeend', table);
+    </div>`);
 
-  addMsg('bot', '🤖 ' + data.yorum);
   chat.scrollTop = chat.scrollHeight;
+}
+
+async function streamLLM(symbol, indicators, baseUrl, model, thinking) {
+  // Boş bot mesajı oluştur, token geldikçe doldur
+  const msgDiv = document.createElement('div');
+  msgDiv.className = 'msg bot';
+  msgDiv.textContent = '🤖 ';
+  chat.appendChild(msgDiv);
+  chat.scrollTop = chat.scrollHeight;
+
+  const form = new FormData();
+  form.append('symbol', symbol);
+  form.append('base_url', baseUrl);
+  form.append('model', model);
+  form.append('indicators', JSON.stringify(indicators));
+  form.append('thinking', thinking ? 'true' : 'false');
+
+  const res = await fetch('/analyze/stream', { method: 'POST', body: form });
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith('data:')) continue;
+      const raw = line.slice(5).trim();
+      if (raw === '[DONE]') return;
+      try {
+        const obj = JSON.parse(raw);
+        if (obj.token) {
+          msgDiv.textContent += obj.token;
+          chat.scrollTop = chat.scrollHeight;
+        }
+        if (obj.error) msgDiv.textContent += `\n❌ ${obj.error}`;
+      } catch {}
+    }
+  }
 }
 
 async function send() {
   const text = msgInput.value.trim();
   if (!text) return;
 
-  const model = localStorage.getItem('model') || modelSelect.value;
+  const model   = localStorage.getItem('model') || modelSelect.value;
+  const baseUrl = localStorage.getItem('lmUrl') || 'http://localhost:1234';
+  const thinking = localStorage.getItem('thinking') === '1';
+
   if (!model) { addMsg('system', '⚠️ Lütfen önce ayarlardan model seçin.'); return; }
 
   addMsg('user', text);
   msgInput.value = '';
-  addMsg('system', '⏳ Analiz yapılıyor...');
+  addMsg('system', '⏳ Veri çekiliyor...');
 
   const form = new FormData();
   form.append('symbol', text);
-  form.append('base_url', localStorage.getItem('lmUrl') || 'http://localhost:1234');
+  form.append('base_url', baseUrl);
   form.append('model', model);
   form.append('form_params', JSON.stringify(getFormParams()));
-  form.append('thinking', localStorage.getItem('thinking') === '1' ? 'true' : 'false');
+  form.append('thinking', thinking ? 'true' : 'false');
   if (selectedFile) { form.append('file', selectedFile); selectedFile = null; csvFile.value = ''; }
 
   try {
     const res = await fetch('/analyze', { method: 'POST', body: form });
-    chat.removeChild(chat.lastChild);
+    chat.removeChild(chat.lastChild); // "Veri çekiliyor" kaldır
     const data = await res.json();
     if (data.hata) { addMsg('system', '❌ ' + data.hata); return; }
+
     addAnalysis(data);
+
+    // LLM stream başlat
+    await streamLLM(data.symbol, data.indicators, baseUrl, model, thinking);
+
   } catch (e) {
-    chat.removeChild(chat.lastChild);
+    if (chat.lastChild?.textContent?.includes('çekiliyor')) chat.removeChild(chat.lastChild);
     addMsg('system', '❌ Sunucu hatası: ' + e.message);
   }
 }
