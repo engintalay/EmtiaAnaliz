@@ -31,6 +31,16 @@ def parse_params(text: str, form_params: dict = None) -> dict:
     if m:
         p["days"] = int(m.group(1))
 
+    # Ay: "1 ay", "3 aylık", "son 6 ay"
+    m = re.search(r'(\d+)\s*AY', text_up)
+    if m:
+        p["days"] = int(m.group(1)) * 30
+
+    # Yıl: "1 yıl", "2 yıllık"
+    m = re.search(r'(\d+)\s*YIL', text_up)
+    if m:
+        p["days"] = int(m.group(1)) * 365
+
     # EMA periyotları: "EMA 9 21 50 200"
     m = re.search(r'EMA[\s(]*([\d\s,]+)', text_up)
     if m:
