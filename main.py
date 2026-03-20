@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
 import data_fetcher, technical, chart, llm, history
+from logger import log
 import re, os
 
 # Mesajdan sembol çıkar: "BTC analiz et" → "BTC"
@@ -45,39 +46,51 @@ async def analyze(
     model: str = Form(...),
     file: UploadFile = File(None),
 ):
-    # Sembolü mesajdan çıkar
+    raw_input = symbol
     symbol = extract_symbol(symbol)
-    if file and file.filename:
-        content = await file.read()
-        df = data_fetcher.fetch_from_csv(content)
-    else:
-        df = data_fetcher.fetch_data(symbol)
+    log.info(f"İSTEK | girdi='{raw_input}' → sembol='{symbol}' | model={model} | url={base_url}")
 
-    if df.empty:
-        return JSONResponse({"hata": f"'{symbol}' için veri alınamadı. CSV yükleyebilirsiniz."}, status_code=400)
+    try:
+        # Veri çek
+        if file and file.filename:
+            content = await file.read()
+            df = data_fetcher.fetch_from_csv(content)
+            log.info(f"VERİ  | CSV yüklendi: {file.filename}, {len(df)} satır")
+        else:
+            df = data_fetcher.fetch_data(symbol)
+            log.info(f"VERİ  | {symbol} → {len(df)} satır")
 
-    # Teknik analiz
-    indicators = technical.calculate(df)
-    if "hata" in indicators:
-        return JSONResponse({"hata": indicators["hata"]}, status_code=400)
+        if df.empty:
+            log.warning(f"HATA  | {symbol} için veri alınamadı")
+            return JSONResponse({"hata": f"'{symbol}' için veri alınamadı. CSV yükleyebilirsiniz."}, status_code=400)
 
-    df_with_indicators = indicators.pop("df")
+        # Teknik analiz
+        indicators = technical.calculate(df)
+        if "hata" in indicators:
+            log.warning(f"HATA  | Teknik analiz: {indicators['hata']}")
+            return JSONResponse({"hata": indicators["hata"]}, status_code=400)
 
-    # Grafik
-    chart_html = chart.create_chart(df_with_indicators, symbol)
+        log.info(f"ANALİZ| {symbol} | fiyat={indicators.get('fiyat')} RSI={indicators.get('rsi')} trend={indicators.get('trend')}")
 
-    # LLM yorumu
-    yorum = llm.analyze(symbol, indicators, base_url, model)
+        df_with_indicators = indicators.pop("df")
+        chart_html = chart.create_chart(df_with_indicators, symbol)
 
-    # Geçmişe kaydet
-    history.save(symbol, indicators, yorum)
+        # LLM yorumu
+        yorum = llm.analyze(symbol, indicators, base_url, model)
+        log.info(f"LLM   | {symbol} | yorum uzunluğu={len(yorum)} karakter")
 
-    return JSONResponse({
-        "symbol": symbol,
-        "indicators": indicators,
-        "chart": chart_html,
-        "yorum": yorum,
-    })
+        history.save(symbol, indicators, yorum)
+
+        return JSONResponse({
+            "symbol": symbol,
+            "indicators": indicators,
+            "chart": chart_html,
+            "yorum": yorum,
+        })
+
+    except Exception as e:
+        log.error(f"KRİTİK| {symbol} | {type(e).__name__}: {e}", exc_info=True)
+        return JSONResponse({"hata": f"Beklenmeyen hata: {e}"}, status_code=500)
 
 
 @app.get("/history")

@@ -8,6 +8,7 @@ venv/
 
 # Veri
 data/history.json
+logs/
 
 # IDE
 .vscode/
