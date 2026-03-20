@@ -19,6 +19,16 @@ YAHOO_MAP = {
     "SILVER": "SI=F", "GUMUS": "SI=F",
     "NASDAQ": "^IXIC", "SP500": "^GSPC", "BIST100": "XU100.IS",
     "DOLAR": "USDTRY=X", "EURO": "EURTRY=X",
+    "USDTRY": "USDTRY=X", "EURTRY": "EURTRY=X",
+    "GBPTRY": "GBPTRY=X", "JPYTRY": "JPYTRY=X",
+    "USDTTRY": "USDTTRY=X",
+    "EURUSD": "EURUSD=X", "GBPUSD": "GBPUSD=X",
+}
+
+# Döviz çifti kalıpları: "USDT TRY", "USD/TRY", "BTC USD"
+CURRENCY_PAIRS = {
+    "USDT": "USDT", "USD": "USD", "EUR": "EUR", "GBP": "GBP",
+    "JPY": "JPY", "TRY": "TRY", "CHF": "CHF", "AUD": "AUD",
 }
 
 # gün → Yahoo range/interval
@@ -96,7 +106,7 @@ def fetch_data(symbol: str, asset_type: str = "auto", days: int = 90) -> pd.Data
             pass
 
     # Yahoo Finance query API dene
-    for sym in [symbol, symbol + "-USD", symbol + ".IS"]:
+    for sym in [symbol, symbol + "=X", symbol + "-USD", symbol + ".IS"]:
         try:
             df = fetch_yf_api(sym, days=days)
             if not df.empty:

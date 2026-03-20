@@ -11,6 +11,15 @@ last_symbol = {}  # {"symbol": "BTC"} — son kullanılan sembol
 
 def extract_symbol(text: str) -> str:
     text_up = text.strip().upper()
+
+    # Döviz çifti algılama: "USDT TRY", "USD/TRY", "EUR USD paritesi"
+    pair_match = re.search(r'\b(USDT?|EUR|GBP|JPY|CHF|AUD)\s*[/\- ]?\s*(TRY|USD|EUR|GBP|JPY|CHF|AUD)\b', text_up)
+    if pair_match:
+        pair = pair_match.group(1) + pair_match.group(2)
+        if pair in data_fetcher.YAHOO_MAP:
+            return pair
+        return pair  # fetch_data'da =X eklenir
+
     for sym in data_fetcher.CRYPTO_IDS:
         if re.search(rf'\b{sym}\b', text_up):
             return sym
@@ -18,10 +27,8 @@ def extract_symbol(text: str) -> str:
         if re.search(rf'\b{sym}\b', text_up):
             return sym
     first = text_up.split()[0]
-    # Sadece harf içeren ve 2+ karakter olan kelimeleri sembol say
     if re.match(r'^[A-Z]{2,10}([.=^][A-Z0-9]+)?$', first):
         return first
-    # Sembol bulunamadıysa son kullanılan sembolü döndür
     return last_symbol.get("symbol", text_up)
 
 app = FastAPI()
