@@ -34,6 +34,8 @@
       <div class="settings-actions" style="margin-bottom:16px">
         <button id="loadModels">Modelleri Yükle</button>
         <button id="saveSettings">Kaydet</button>
+        <button id="clearCacheBtn" style="margin-left:8px">Önbelleği Temizle</button>
+        <button id="unregisterSWBtn" style="margin-left:8px">Servis Çalışanını Kaldır</button>
       </div>
 
       <label style="flex-direction:row;align-items:center;gap:10px;margin-top:4px">
@@ -68,6 +70,8 @@
     <button id="csvBtn" title="CSV Yükle">📎</button>
     <input id="msgInput" type="text" placeholder="BTC analiz et / RSI 21 olsun..." autocomplete="off">
     <button id="sendBtn">Gönder</button>
+    <button id="clearCacheMainBtn" title="Önbelleği Temizle" style="margin-left:8px">🧹</button>
+    <button id="unregisterSWMainBtn" title="Servis Çalışanını Kaldır" style="margin-left:6px">🚫</button>
   </div>
 </div>
 
@@ -156,6 +160,53 @@ document.getElementById('saveParams').onclick = () => {
   addMsg('system', '✅ Parametreler kaydedildi.');
 };
 
+// Cache / Service Worker helpers (for mobile debugging)
+function clearAppCache() {
+  if ('caches' in window) {
+    caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .then(() => addMsg('system', '✅ Tarayıcı önbelleği temizlendi.'))
+      .catch(e => addMsg('system', '❌ Önbellek temizleme hatası: ' + (e && e.message)));
+  } else {
+    addMsg('system', 'Tarayıcı cache API desteği yok.');
+  }
+}
+
+function unregisterServiceWorkers() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations()
+      .then(regs => Promise.all(regs.map(r => r.unregister())))
+      .then(() => addMsg('system', '✅ Service Worker kaldırıldı. Lütfen sayfayı yenileyin.'))
+      .catch(e => addMsg('system', '❌ Service Worker kaldırılamadı: ' + (e && e.message)));
+  } else {
+    addMsg('system', 'Tarayıcı Service Worker desteklemiyor.');
+  }
+}
+
+// Attach events to the new buttons (if present)
+document.addEventListener('DOMContentLoaded', () => {
+  const cb = document.getElementById('clearCacheBtn');
+  if (cb) cb.onclick = () => {
+    if (confirm('Tarayıcı önbelleği (Caches) ve service worker kayıtlarını temizlemek istiyor musunuz?')) {
+      clearAppCache();
+    }
+  };
+  const ub = document.getElementById('unregisterSWBtn');
+  if (ub) ub.onclick = () => {
+    if (confirm('Tüm Service Worker kayıtlarını kaldırmak istiyor musunuz? (Sayfayı yenilemeniz gerekebilir)')) {
+      unregisterServiceWorkers();
+    }
+  };
+  // main-screen buttons
+  const cbm = document.getElementById('clearCacheMainBtn');
+  if (cbm) cbm.onclick = () => {
+    if (confirm('Tarayıcı önbelleğini temizlemek istiyor musunuz?')) clearAppCache();
+  };
+  const ubm = document.getElementById('unregisterSWMainBtn');
+  if (ubm) ubm.onclick = () => {
+    if (confirm('Service Worker kayıtlarını kaldırmak istiyor musunuz?')) unregisterServiceWorkers();
+  };
+});
+
 document.getElementById('loadModels').onclick = async () => {
   modelSelect.innerHTML = '<option>Yükleniyor...</option>';
   try {
@@ -192,13 +243,29 @@ function addAnalysis(data) {
   const iframe = document.createElement('iframe');
   iframe.scrolling = 'no';
   iframe.style.cssText = 'width:100%;height:430px;min-height:430px;flex-shrink:0;border:none;border-radius:8px;background:#16213e;display:block';
-  iframe.srcdoc = data.chart;  // blob URL yerine srcdoc — mobilde güvenli
-  iframe.onload = () => {
-    try {
-      const h = iframe.contentDocument.documentElement.scrollHeight;
-      if (h > 10) iframe.style.height = h + 'px';
-    } catch {}
-  };
+  // Use blob URL for src instead of srcdoc so inline scripts run reliably in mobile WebViews/PWAs
+  try {
+    const blob = new Blob([data.chart], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    iframe.src = url;
+    iframe.addEventListener('load', () => {
+      try {
+        const h = iframe.contentWindow.document.documentElement.scrollHeight;
+        if (h > 10) iframe.style.height = h + 'px';
+      } catch {}
+      // revoke after a short delay to ensure load complete
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch {} }, 1000);
+    });
+  } catch (e) {
+    // Fallback to srcdoc if blob isn't supported
+    iframe.srcdoc = data.chart;
+    iframe.onload = () => {
+      try {
+        const h = iframe.contentDocument.documentElement.scrollHeight;
+        if (h > 10) iframe.style.height = h + 'px';
+      } catch {}
+    };
+  }
   wrap.appendChild(iframe);
   chat.appendChild(wrap);
 
