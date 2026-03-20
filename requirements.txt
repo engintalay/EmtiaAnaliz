@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+yfinance
+ccxt
+pandas
+pandas-ta
+plotly
+requests
+python-multipart

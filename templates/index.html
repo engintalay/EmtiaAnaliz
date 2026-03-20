@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>EmtiaAnaliz</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="app">
+  <!-- Header -->
+  <header>
+    <span class="logo">📈 EmtiaAnaliz</span>
+    <button id="settingsBtn" title="Ayarlar">⚙️</button>
+  </header>
+
+  <!-- Ayarlar Paneli -->
+  <div id="settingsPanel" class="hidden">
+    <div class="settings-box">
+      <h3>Ayarlar</h3>
+      <label>LMStudio URL
+        <input id="lmUrl" type="text" value="http://localhost:1234" placeholder="http://localhost:1234">
+      </label>
+      <label>Model
+        <select id="modelSelect"><option value="">— Model seç —</option></select>
+      </label>
+      <div class="settings-actions">
+        <button id="loadModels">Modelleri Yükle</button>
+        <button id="saveSettings">Kaydet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sohbet -->
+  <div id="chat"></div>
+
+  <!-- Input -->
+  <div id="inputArea">
+    <input id="csvFile" type="file" accept=".csv" class="hidden">
+    <button id="csvBtn" title="CSV Yükle">📎</button>
+    <input id="msgInput" type="text" placeholder="Sembol girin (BTC, AAPL, XAUUSD...)" autocomplete="off">
+    <button id="sendBtn">Gönder</button>
+  </div>
+</div>
+
+<script>
+const chat = document.getElementById('chat');
+const msgInput = document.getElementById('msgInput');
+const sendBtn = document.getElementById('sendBtn');
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsPanel = document.getElementById('settingsPanel');
+const lmUrl = document.getElementById('lmUrl');
+const modelSelect = document.getElementById('modelSelect');
+const csvBtn = document.getElementById('csvBtn');
+const csvFile = document.getElementById('csvFile');
+
+let selectedFile = null;
+
+// Ayarları yükle
+lmUrl.value = localStorage.getItem('lmUrl') || 'http://localhost:1234';
+const savedModel = localStorage.getItem('model') || '';
+
+settingsBtn.onclick = () => settingsPanel.classList.toggle('hidden');
+
+document.getElementById('saveSettings').onclick = () => {
+  localStorage.setItem('lmUrl', lmUrl.value);
+  localStorage.setItem('model', modelSelect.value);
+  settingsPanel.classList.add('hidden');
+  addMsg('system', '✅ Ayarlar kaydedildi.');
+};
+
+document.getElementById('loadModels').onclick = async () => {
+  modelSelect.innerHTML = '<option>Yükleniyor...</option>';
+  try {
+    const res = await fetch(`/models?base_url=${encodeURIComponent(lmUrl.value)}`);
+    const data = await res.json();
+    modelSelect.innerHTML = data.models.map(m =>
+      `<option value="${m}" ${m === savedModel ? 'selected' : ''}>${m}</option>`
+    ).join('');
+    if (!data.models.length) modelSelect.innerHTML = '<option>Model bulunamadı</option>';
+  } catch {
+    modelSelect.innerHTML = '<option>Bağlantı hatası</option>';
+  }
+};
+
+csvBtn.onclick = () => csvFile.click();
+csvFile.onchange = () => {
+  selectedFile = csvFile.files[0];
+  if (selectedFile) addMsg('system', `📎 ${selectedFile.name} seçildi.`);
+};
+
+function addMsg(role, content, isHtml = false) {
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  if (isHtml) div.innerHTML = content;
+  else div.textContent = content;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addAnalysis(data) {
+  // Grafik
+  const chartDiv = document.createElement('div');
+  chartDiv.className = 'msg bot chart-container';
+  chartDiv.innerHTML = data.chart;
+  chat.appendChild(chartDiv);
+
+  // Göstergeler tablosu
+  const ind = data.indicators;
+  const table = `
+    <div class="msg bot">
+      <b>📊 ${data.symbol} Teknik Göstergeler</b>
+      <table class="ind-table">
+        <tr><td>Fiyat</td><td><b>${ind.fiyat?.toFixed(4)}</b></td></tr>
+        <tr><td>RSI (14)</td><td>${ind.rsi} — ${ind.rsi_yorum}</td></tr>
+        <tr><td>MACD</td><td>${ind.macd_yorum}</td></tr>
+        <tr><td>Trend</td><td>${ind.trend}</td></tr>
+        <tr><td>Destek</td><td>${ind.destek}</td></tr>
+        <tr><td>Direnç</td><td>${ind.direnc}</td></tr>
+        <tr><td>Hacim</td><td>${ind.hacim_yorum}</td></tr>
+      </table>
+    </div>`;
+  chat.insertAdjacentHTML('beforeend', table);
+
+  // LLM yorumu
+  addMsg('bot', '🤖 ' + data.yorum);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function send() {
+  const symbol = msgInput.value.trim().toUpperCase();
+  if (!symbol) return;
+
+  const model = localStorage.getItem('model') || modelSelect.value;
+  if (!model) { addMsg('system', '⚠️ Lütfen önce ayarlardan model seçin.'); return; }
+
+  addMsg('user', symbol);
+  msgInput.value = '';
+  addMsg('system', '⏳ Analiz yapılıyor...');
+
+  const form = new FormData();
+  form.append('symbol', symbol);
+  form.append('base_url', localStorage.getItem('lmUrl') || 'http://localhost:1234');
+  form.append('model', model);
+  if (selectedFile) { form.append('file', selectedFile); selectedFile = null; csvFile.value = ''; }
+
+  try {
+    const res = await fetch('/analyze', { method: 'POST', body: form });
+    // Yükleniyor mesajını kaldır
+    chat.removeChild(chat.lastChild);
+    const data = await res.json();
+    if (data.hata) { addMsg('system', '❌ ' + data.hata); return; }
+    addAnalysis(data);
+  } catch (e) {
+    chat.removeChild(chat.lastChild);
+    addMsg('system', '❌ Sunucu hatası: ' + e.message);
+  }
+}
+
+sendBtn.onclick = send;
+msgInput.onkeydown = e => { if (e.key === 'Enter') send(); };
+
+// Karşılama mesajı
+addMsg('bot', '👋 Merhaba! Analiz etmek istediğiniz sembolü yazın.\nÖrnekler: BTC, ETH, AAPL, THYAO, XAUUSD, BZ=F (Brent Petrol)');
+</script>
+</body>
+</html>
