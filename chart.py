@@ -65,4 +65,5 @@ def create_chart(df: pd.DataFrame, symbol: str, params: dict = None) -> str:
         autosize=True,
     )
 
-    return fig.to_html(full_html=True, include_plotlyjs="/static/plotly.min.js", config={"responsive": True})
+    html = fig.to_html(full_html=True, include_plotlyjs="/static/plotly.min.js", config={"responsive": True})
+    return html.replace("<head>", '<head><meta name="viewport" content="width=device-width, initial-scale=1.0">')
