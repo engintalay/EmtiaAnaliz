@@ -21,7 +21,7 @@
   </header>
 
   <!-- Ayarlar Paneli -->
-  <div id="settingsPanel" class="hidden">
+  <div id="settingsPanel">
     <div class="settings-box">
       <h3>⚙️ Ayarlar</h3>
 
@@ -110,19 +110,22 @@ function getFormParams() {
 }
 loadParamUI();
 
-settingsBtn.onclick = () => settingsPanel.classList.toggle('hidden');
-settingsPanel.onclick = e => { if (e.target === settingsPanel) settingsPanel.classList.add('hidden'); };
+settingsBtn.onclick = () => {
+  const isHidden = settingsPanel.style.display === 'none' || settingsPanel.style.display === '';
+  settingsPanel.style.display = isHidden ? 'flex' : 'none';
+};
+settingsPanel.onclick = e => { if (e.target === settingsPanel) settingsPanel.style.display = 'none'; };
 
 document.getElementById('saveSettings').onclick = () => {
   localStorage.setItem('lmUrl', lmUrl.value);
   localStorage.setItem('model', modelSelect.value);
-  settingsPanel.classList.add('hidden');
+  settingsPanel.style.display = 'none';
   addMsg('system', '✅ Ayarlar kaydedildi.');
 };
 
 document.getElementById('saveParams').onclick = () => {
   localStorage.setItem('params', JSON.stringify(getFormParams()));
-  settingsPanel.classList.add('hidden');
+  settingsPanel.style.display = 'none';
   addMsg('system', '✅ Parametreler kaydedildi.');
 };
 
