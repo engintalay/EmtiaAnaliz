@@ -61,7 +61,7 @@ def fetch_from_csv(content: bytes) -> pd.DataFrame:
     return df
 
 
-def fetch_data(symbol: str, asset_type: str = "auto") -> pd.DataFrame:
+def fetch_data(symbol: str, asset_type: str = "auto", days: int = 90) -> pd.DataFrame:
     symbol = symbol.upper().strip()
 
     # Takma ad çözümle
@@ -73,14 +73,14 @@ def fetch_data(symbol: str, asset_type: str = "auto") -> pd.DataFrame:
 
     if is_crypto and coin_id:
         try:
-            return fetch_crypto(coin_id)
+            return fetch_crypto(coin_id, days=days)
         except Exception:
-            pass  # fallback
+            pass
 
-    # yfinance dene
+    period = "1y" if days > 180 else ("6mo" if days > 90 else "3mo")
     for sym in [symbol, symbol + "-USD", symbol + ".IS"]:
         try:
-            df = fetch_yfinance(sym)
+            df = fetch_yfinance(sym, period=period)
             if not df.empty:
                 return df
         except Exception:

@@ -3,7 +3,10 @@ from plotly.subplots import make_subplots
 import pandas as pd
 
 
-def create_chart(df: pd.DataFrame, symbol: str) -> str:
+def create_chart(df: pd.DataFrame, symbol: str, params: dict = None) -> str:
+    from technical import DEFAULTS
+    p = {**DEFAULTS, **(params or {})}
+    ema_periods = p.get("ema_periods", [9, 21, 50])
     """Fiyat + RSI + MACD içeren interaktif Plotly grafiği üretir. HTML string döner."""
     fig = make_subplots(
         rows=3, cols=1,
@@ -23,10 +26,12 @@ def create_chart(df: pd.DataFrame, symbol: str) -> str:
         decreasing_line_color="#ef5350",
     ), row=1, col=1)
 
-    # EMA'lar
-    for col, color, name in [("ema9", "#f39c12", "EMA9"), ("ema21", "#3498db", "EMA21"), ("ema50", "#9b59b6", "EMA50")]:
+    # EMA'lar (dinamik)
+    colors = ["#f39c12", "#3498db", "#9b59b6", "#e74c3c", "#2ecc71"]
+    for i, period in enumerate(ema_periods):
+        col = f"ema{period}"
         if col in df.columns:
-            fig.add_trace(go.Scatter(x=df.index, y=df[col], line=dict(color=color, width=1), name=name), row=1, col=1)
+            fig.add_trace(go.Scatter(x=df.index, y=df[col], line=dict(color=colors[i % len(colors)], width=1), name=f"EMA{period}"), row=1, col=1)
 
     # Bollinger Bands
     if "bb_upper" in df.columns and "bb_lower" in df.columns:

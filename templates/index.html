@@ -23,17 +23,34 @@
   <!-- Ayarlar Paneli -->
   <div id="settingsPanel" class="hidden">
     <div class="settings-box">
-      <h3>Ayarlar</h3>
+      <h3>⚙️ Ayarlar</h3>
+
       <label>LMStudio URL
-        <input id="lmUrl" type="text" value="http://localhost:1234" placeholder="http://localhost:1234">
+        <input id="lmUrl" type="text" value="http://localhost:1234">
       </label>
       <label>Model
         <select id="modelSelect"><option value="">— Model seç —</option></select>
       </label>
-      <div class="settings-actions">
+      <div class="settings-actions" style="margin-bottom:16px">
         <button id="loadModels">Modelleri Yükle</button>
         <button id="saveSettings">Kaydet</button>
       </div>
+
+      <hr style="border-color:#2a2a4a;margin-bottom:14px">
+      <h3 style="margin-bottom:12px">📐 Analiz Parametreleri</h3>
+
+      <div class="param-grid">
+        <label>RSI Periyot<input id="p_rsi" type="number" value="14" min="2" max="100"></label>
+        <label>BB Periyot<input id="p_bb" type="number" value="20" min="2" max="100"></label>
+        <label>MACD Hızlı<input id="p_mf" type="number" value="12" min="2" max="100"></label>
+        <label>MACD Yavaş<input id="p_ms" type="number" value="26" min="2" max="100"></label>
+        <label>MACD Sinyal<input id="p_msig" type="number" value="9" min="2" max="100"></label>
+        <label>Veri (gün)<input id="p_days" type="number" value="90" min="7" max="730"></label>
+      </div>
+      <label style="margin-top:10px">EMA Periyotları (virgülle)
+        <input id="p_ema" type="text" value="9,21,50" placeholder="9,21,50,200">
+      </label>
+      <button id="saveParams" style="width:100%;margin-top:12px;padding:12px;border-radius:10px;border:none;background:#2a4a8a;color:#fff;font-size:16px;font-weight:600;cursor:pointer">Parametreleri Kaydet</button>
     </div>
   </div>
 
@@ -44,21 +61,21 @@
   <div id="inputArea">
     <input id="csvFile" type="file" accept=".csv" class="hidden">
     <button id="csvBtn" title="CSV Yükle">📎</button>
-    <input id="msgInput" type="text" placeholder="Sembol girin (BTC, AAPL, XAUUSD...)" autocomplete="off">
+    <input id="msgInput" type="text" placeholder="BTC analiz et / RSI 21 olsun..." autocomplete="off">
     <button id="sendBtn">Gönder</button>
   </div>
 </div>
 
 <script>
-const chat = document.getElementById('chat');
-const msgInput = document.getElementById('msgInput');
-const sendBtn = document.getElementById('sendBtn');
-const settingsBtn = document.getElementById('settingsBtn');
+const chat      = document.getElementById('chat');
+const msgInput  = document.getElementById('msgInput');
+const sendBtn   = document.getElementById('sendBtn');
+const settingsBtn   = document.getElementById('settingsBtn');
 const settingsPanel = document.getElementById('settingsPanel');
-const lmUrl = document.getElementById('lmUrl');
-const modelSelect = document.getElementById('modelSelect');
-const csvBtn = document.getElementById('csvBtn');
-const csvFile = document.getElementById('csvFile');
+const lmUrl     = document.getElementById('lmUrl');
+const modelSelect   = document.getElementById('modelSelect');
+const csvBtn    = document.getElementById('csvBtn');
+const csvFile   = document.getElementById('csvFile');
 
 let selectedFile = null;
 
@@ -66,8 +83,35 @@ let selectedFile = null;
 lmUrl.value = localStorage.getItem('lmUrl') || 'http://localhost:1234';
 const savedModel = localStorage.getItem('model') || '';
 
+// Parametreleri yükle
+function loadParamUI() {
+  const p = getSavedParams();
+  document.getElementById('p_rsi').value  = p.rsi_period;
+  document.getElementById('p_bb').value   = p.bb_period;
+  document.getElementById('p_mf').value   = p.macd_fast;
+  document.getElementById('p_ms').value   = p.macd_slow;
+  document.getElementById('p_msig').value = p.macd_signal;
+  document.getElementById('p_days').value = p.days;
+  document.getElementById('p_ema').value  = p.ema_periods.join(',');
+}
+function getSavedParams() {
+  try { return JSON.parse(localStorage.getItem('params') || '{}'); } catch { return {}; }
+}
+function getFormParams() {
+  return {
+    rsi_period:  parseInt(document.getElementById('p_rsi').value)  || 14,
+    bb_period:   parseInt(document.getElementById('p_bb').value)   || 20,
+    macd_fast:   parseInt(document.getElementById('p_mf').value)   || 12,
+    macd_slow:   parseInt(document.getElementById('p_ms').value)   || 26,
+    macd_signal: parseInt(document.getElementById('p_msig').value) || 9,
+    days:        parseInt(document.getElementById('p_days').value) || 90,
+    ema_periods: document.getElementById('p_ema').value.split(',').map(x => parseInt(x.trim())).filter(Boolean),
+  };
+}
+loadParamUI();
+
 settingsBtn.onclick = () => settingsPanel.classList.toggle('hidden');
-settingsPanel.onclick = (e) => { if (e.target === settingsPanel) settingsPanel.classList.add('hidden'); };
+settingsPanel.onclick = e => { if (e.target === settingsPanel) settingsPanel.classList.add('hidden'); };
 
 document.getElementById('saveSettings').onclick = () => {
   localStorage.setItem('lmUrl', lmUrl.value);
@@ -76,18 +120,22 @@ document.getElementById('saveSettings').onclick = () => {
   addMsg('system', '✅ Ayarlar kaydedildi.');
 };
 
+document.getElementById('saveParams').onclick = () => {
+  localStorage.setItem('params', JSON.stringify(getFormParams()));
+  settingsPanel.classList.add('hidden');
+  addMsg('system', '✅ Parametreler kaydedildi.');
+};
+
 document.getElementById('loadModels').onclick = async () => {
   modelSelect.innerHTML = '<option>Yükleniyor...</option>';
   try {
-    const res = await fetch(`/models?base_url=${encodeURIComponent(lmUrl.value)}`);
+    const res  = await fetch(`/models?base_url=${encodeURIComponent(lmUrl.value)}`);
     const data = await res.json();
     modelSelect.innerHTML = data.models.map(m =>
       `<option value="${m}" ${m === savedModel ? 'selected' : ''}>${m}</option>`
     ).join('');
     if (!data.models.length) modelSelect.innerHTML = '<option>Model bulunamadı</option>';
-  } catch {
-    modelSelect.innerHTML = '<option>Bağlantı hatası</option>';
-  }
+  } catch { modelSelect.innerHTML = '<option>Bağlantı hatası</option>'; }
 };
 
 csvBtn.onclick = () => csvFile.click();
@@ -106,6 +154,9 @@ function addMsg(role, content, isHtml = false) {
 }
 
 function addAnalysis(data) {
+  // Parametre bilgisi
+  if (data.param_info) addMsg('system', data.param_info);
+
   // Grafik
   const chartDiv = document.createElement('div');
   chartDiv.className = 'msg bot chart-container';
@@ -114,13 +165,21 @@ function addAnalysis(data) {
 
   // Göstergeler tablosu
   const ind = data.indicators;
+  const p   = data.params || {};
+  const emaRows = (p.ema_periods || [9,21,50]).map(ep =>
+    `<tr><td>EMA${ep}</td><td>${(ind[`ema${ep}`] || 0).toFixed(4)}</td></tr>`
+  ).join('');
+
   const table = `
     <div class="msg bot">
       <b>📊 ${data.symbol} Teknik Göstergeler</b>
       <table class="ind-table">
         <tr><td>Fiyat</td><td><b>${ind.fiyat?.toFixed(4)}</b></td></tr>
-        <tr><td>RSI (14)</td><td>${ind.rsi} — ${ind.rsi_yorum}</td></tr>
+        <tr><td>RSI (${p.rsi_period||14})</td><td>${ind.rsi} — ${ind.rsi_yorum}</td></tr>
         <tr><td>MACD</td><td>${ind.macd_yorum}</td></tr>
+        <tr><td>BB Üst</td><td>${ind.bb_ust || '-'}</td></tr>
+        <tr><td>BB Alt</td><td>${ind.bb_alt || '-'}</td></tr>
+        ${emaRows}
         <tr><td>Trend</td><td>${ind.trend}</td></tr>
         <tr><td>Destek</td><td>${ind.destek}</td></tr>
         <tr><td>Direnç</td><td>${ind.direnc}</td></tr>
@@ -129,31 +188,30 @@ function addAnalysis(data) {
     </div>`;
   chat.insertAdjacentHTML('beforeend', table);
 
-  // LLM yorumu
   addMsg('bot', '🤖 ' + data.yorum);
   chat.scrollTop = chat.scrollHeight;
 }
 
 async function send() {
-  const symbol = msgInput.value.trim().toUpperCase();
-  if (!symbol) return;
+  const text = msgInput.value.trim();
+  if (!text) return;
 
   const model = localStorage.getItem('model') || modelSelect.value;
   if (!model) { addMsg('system', '⚠️ Lütfen önce ayarlardan model seçin.'); return; }
 
-  addMsg('user', symbol);
+  addMsg('user', text);
   msgInput.value = '';
   addMsg('system', '⏳ Analiz yapılıyor...');
 
   const form = new FormData();
-  form.append('symbol', symbol);
+  form.append('symbol', text);
   form.append('base_url', localStorage.getItem('lmUrl') || 'http://localhost:1234');
   form.append('model', model);
+  form.append('form_params', JSON.stringify(getFormParams()));
   if (selectedFile) { form.append('file', selectedFile); selectedFile = null; csvFile.value = ''; }
 
   try {
     const res = await fetch('/analyze', { method: 'POST', body: form });
-    // Yükleniyor mesajını kaldır
     chat.removeChild(chat.lastChild);
     const data = await res.json();
     if (data.hata) { addMsg('system', '❌ ' + data.hata); return; }
@@ -167,13 +225,9 @@ async function send() {
 sendBtn.onclick = send;
 msgInput.onkeydown = e => { if (e.key === 'Enter') send(); };
 
-// Service Worker kaydı (PWA)
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/static/sw.js');
-}
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/static/sw.js');
 
-// Karşılama mesajı
-addMsg('bot', '👋 Merhaba! Analiz etmek istediğiniz sembolü yazın.\nÖrnekler: BTC, ETH, AAPL, THYAO, XAUUSD, BZ=F (Brent Petrol)');
+addMsg('bot', '👋 Merhaba! Sembol yazın veya doğal dil kullanın.\n\nÖrnekler:\n• BTC analiz et\n• AAPL hissesini incele\n• altın analizi, RSI 21 olsun\n• ETH, 180 günlük analiz yap\n\nParametreleri ⚙️ ayarlardan da değiştirebilirsiniz.');
 </script>
 </body>
 </html>
