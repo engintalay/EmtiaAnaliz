@@ -240,32 +240,28 @@ function addAnalysis(data) {
   // Grafik — iframe ile
   const wrap = document.createElement('div');
   wrap.className = 'msg bot chart-container';
+
+  // Tam ekran butonu (mobilde çok işe yarar)
+  const fsBtn = document.createElement('button');
+  fsBtn.textContent = '🔍 Tam Ekran';
+  fsBtn.className = 'fullscreen-btn';
+  fsBtn.onclick = () => {
+    const w = window.open('', '_blank');
+    w.document.write(data.chart);
+    w.document.close();
+  };
+  wrap.appendChild(fsBtn);
+
   const iframe = document.createElement('iframe');
   iframe.scrolling = 'no';
-  iframe.style.cssText = 'width:100%;height:430px;min-height:430px;flex-shrink:0;border:none;border-radius:8px;background:#16213e;display:block';
-  // Use blob URL for src instead of srcdoc so inline scripts run reliably in mobile WebViews/PWAs
-  try {
-    const blob = new Blob([data.chart], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    iframe.src = url;
-    iframe.addEventListener('load', () => {
-      try {
-        const h = iframe.contentWindow.document.documentElement.scrollHeight;
-        if (h > 10) iframe.style.height = h + 'px';
-      } catch {}
-      // revoke after a short delay to ensure load complete
-      setTimeout(() => { try { URL.revokeObjectURL(url); } catch {} }, 1000);
-    });
-  } catch (e) {
-    // Fallback to srcdoc if blob isn't supported
-    iframe.srcdoc = data.chart;
-    iframe.onload = () => {
-      try {
-        const h = iframe.contentDocument.documentElement.scrollHeight;
-        if (h > 10) iframe.style.height = h + 'px';
-      } catch {}
-    };
-  }
+  iframe.style.cssText = 'width:100%;height:500px;min-height:500px;flex-shrink:0;border:none;border-radius:8px;background:#16213e;display:block';
+  iframe.srcdoc = data.chart;
+  iframe.onload = () => {
+    try {
+      const h = iframe.contentDocument.documentElement.scrollHeight;
+      if (h > 10) iframe.style.height = Math.max(h, 500) + 'px';
+    } catch {}
+  };
   wrap.appendChild(iframe);
   chat.appendChild(wrap);
 
