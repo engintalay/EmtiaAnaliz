@@ -67,6 +67,7 @@ lmUrl.value = localStorage.getItem('lmUrl') || 'http://localhost:1234';
 const savedModel = localStorage.getItem('model') || '';
 
 settingsBtn.onclick = () => settingsPanel.classList.toggle('hidden');
+settingsPanel.onclick = (e) => { if (e.target === settingsPanel) settingsPanel.classList.add('hidden'); };
 
 document.getElementById('saveSettings').onclick = () => {
   localStorage.setItem('lmUrl', lmUrl.value);
