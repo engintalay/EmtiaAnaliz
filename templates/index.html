@@ -224,9 +224,21 @@ function addAnalysis(data) {
 }
 
 async function streamLLM(symbol, indicators, baseUrl, model, thinking) {
+  // Ana yanıt div
   const msgDiv = document.createElement('div');
   msgDiv.className = 'msg bot';
-  msgDiv.textContent = '🤖 ';
+
+  // Düşünme bloğu (collapsible)
+  const thinkWrap = document.createElement('details');
+  thinkWrap.className = 'think-block';
+  thinkWrap.innerHTML = '<summary>🧠 Düşünüyor...</summary><pre class="think-content"></pre>';
+  msgDiv.appendChild(thinkWrap);
+
+  const answerSpan = document.createElement('span');
+  answerSpan.className = 'answer-text';
+  answerSpan.textContent = '🤖 ';
+  msgDiv.appendChild(answerSpan);
+
   chat.appendChild(msgDiv);
   chat.scrollTop = chat.scrollHeight;
 
@@ -240,9 +252,7 @@ async function streamLLM(symbol, indicators, baseUrl, model, thinking) {
   const res = await fetch('/analyze/stream', { method: 'POST', body: form });
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
-  let buf = '';
-  let fullText = '';
-  let inThink = false;
+  let buf = '', fullText = '', hasThink = false;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -253,19 +263,37 @@ async function streamLLM(symbol, indicators, baseUrl, model, thinking) {
     for (const line of lines) {
       if (!line.startsWith('data:')) continue;
       const raw = line.slice(5).trim();
-      if (raw === '[DONE]') return;
+      if (raw === '[DONE]') {
+        // Düşünme bitti, summary güncelle
+        if (hasThink) thinkWrap.querySelector('summary').textContent = '🧠 Düşünme süreci (görmek için tıkla)';
+        else thinkWrap.remove();
+        return;
+      }
       try {
         const obj = JSON.parse(raw);
         if (obj.token) {
           fullText += obj.token;
-          // <think>...</think> bloğunu gizle
-          const visible = fullText
-            .replace(/<think>[\s\S]*?<\/think>/g, '')
-            .replace(/<think>[\s\S]*/g, '');  // henüz kapanmamış think
-          msgDiv.textContent = '🤖 ' + visible.trimStart();
+
+          // Think içeriğini ayır
+          const thinkMatch = fullText.match(/<think>([\s\S]*?)<\/think>/);
+          const openThink  = fullText.match(/<think>([\s\S]*)$/);
+
+          if (thinkMatch) {
+            hasThink = true;
+            thinkWrap.querySelector('.think-content').textContent = thinkMatch[1];
+            const answer = fullText.replace(/<think>[\s\S]*?<\/think>/g, '').trimStart();
+            answerSpan.textContent = '🤖 ' + answer;
+          } else if (openThink) {
+            hasThink = true;
+            thinkWrap.querySelector('.think-content').textContent = openThink[1];
+            answerSpan.textContent = '🤖 ';
+          } else {
+            answerSpan.textContent = '🤖 ' + fullText.trimStart();
+          }
+
           chat.scrollTop = chat.scrollHeight;
         }
-        if (obj.error) msgDiv.textContent += `\n❌ ${obj.error}`;
+        if (obj.error) answerSpan.textContent += `\n❌ ${obj.error}`;
       } catch {}
     }
   }
