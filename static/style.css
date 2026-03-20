@@ -141,8 +141,8 @@ header button {
   width: 100% !important;
 }
 .fullscreen-btn {
-  display: block;
-  margin: 0 0 6px auto;
+  display: inline-block;
+  float: right;
   background: #2a4a8a;
   color: #fff;
   border: none;
@@ -152,6 +152,12 @@ header button {
   cursor: pointer;
 }
 .fullscreen-btn:active { background: #1a3a7a; }
+.chart-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+  padding: 4px 0;
+}
 
 /* ── Gösterge tablosu ── */
 .ind-table {

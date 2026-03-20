@@ -241,6 +241,12 @@ function addAnalysis(data) {
   const wrap = document.createElement('div');
   wrap.className = 'msg bot chart-container';
 
+  // Grafik başlığı
+  const chartTitle = document.createElement('div');
+  chartTitle.className = 'chart-title';
+  chartTitle.textContent = `📈 ${data.symbol} Grafik Analizi`;
+  wrap.appendChild(chartTitle);
+
   // Tam ekran butonu (mobilde çok işe yarar)
   const fsBtn = document.createElement('button');
   fsBtn.textContent = '🔍 Tam Ekran';
