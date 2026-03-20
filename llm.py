@@ -1,18 +1,18 @@
-import requests
+import httpx
+
+TIMEOUT = httpx.Timeout(600.0)
 
 
 def get_models(base_url: str) -> list[str]:
-    """LMStudio'daki mevcut modelleri listeler."""
     try:
-        r = requests.get(f"{base_url}/v1/models", timeout=5)
+        r = httpx.get(f"{base_url}/v1/models", timeout=5)
         r.raise_for_status()
         return [m["id"] for m in r.json().get("data", [])]
     except Exception:
         return []
 
 
-def analyze(symbol: str, indicators: dict, base_url: str, model: str) -> str:
-    """Teknik analiz verilerini LMStudio'ya gönderir, Türkçe yorum alır."""
+async def analyze(symbol: str, indicators: dict, base_url: str, model: str) -> str:
     system_prompt = (
         "Sen deneyimli bir Türk finans analistisin. "
         "Yanıtlarını YALNIZCA Türkçe yaz, kesinlikle başka dil kullanma. "
@@ -24,12 +24,11 @@ def analyze(symbol: str, indicators: dict, base_url: str, model: str) -> str:
 {symbol} için teknik analiz verileri:
 
 - Güncel Fiyat: {indicators.get('fiyat')}
-- RSI (14): {indicators.get('rsi')} → {indicators.get('rsi_yorum')}
+- RSI: {indicators.get('rsi')} → {indicators.get('rsi_yorum')}
 - MACD: {indicators.get('macd')} | Sinyal: {indicators.get('macd_sinyal')} → {indicators.get('macd_yorum')}
 - Bollinger Üst: {indicators.get('bb_ust')} | Alt: {indicators.get('bb_alt')}
-- EMA9: {indicators.get('ema9')} | EMA21: {indicators.get('ema21')} | EMA50: {indicators.get('ema50')}
-- Destek: {indicators.get('destek')} | Direnç: {indicators.get('direnc')}
 - Trend: {indicators.get('trend')}
+- Destek: {indicators.get('destek')} | Direnç: {indicators.get('direnc')}
 - Hacim: {indicators.get('hacim_yorum')}
 
 Bu verilere göre detaylı Türkçe analiz yap ve AL / SAT / BEKLE tavsiyeni açıkla. Yanıtını Türkçe yaz.
@@ -46,8 +45,9 @@ Bu verilere göre detaylı Türkçe analiz yap ve AL / SAT / BEKLE tavsiyeni aç
     }
 
     try:
-        r = requests.post(f"{base_url}/v1/chat/completions", json=payload, timeout=600)
-        r.raise_for_status()
-        return r.json()["choices"][0]["message"]["content"]
+        async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+            r = await client.post(f"{base_url}/v1/chat/completions", json=payload)
+            r.raise_for_status()
+            return r.json()["choices"][0]["message"]["content"]
     except Exception as e:
         return f"LMStudio bağlantı hatası: {e}"

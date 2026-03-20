@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 jinja2
+httpx
 ccxt
 pandas
 ta

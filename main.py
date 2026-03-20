@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi import Request
 import data_fetcher, technical, chart, llm, history, param_parser
 from logger import log
-import re, os, json
+import re, os, json, asyncio
 
 def extract_symbol(text: str) -> str:
     text = text.strip().upper()
@@ -65,10 +65,10 @@ async def analyze(
     try:
         if file and file.filename:
             content = await file.read()
-            df = data_fetcher.fetch_from_csv(content)
+            df = await asyncio.to_thread(data_fetcher.fetch_from_csv, content)
             log.info(f"VERİ  | CSV: {file.filename}, {len(df)} satır")
         else:
-            df = data_fetcher.fetch_data(symbol, days=params.get("days", 90))
+            df = await asyncio.to_thread(data_fetcher.fetch_data, symbol, "auto", params.get("days", 90))
             log.info(f"VERİ  | {symbol} → {len(df)} satır")
 
         if df.empty:
@@ -87,7 +87,7 @@ async def analyze(
         chart_html = chart.create_chart(df_ind, symbol, used_params)
         param_info = param_parser.params_summary(used_params)
 
-        yorum = llm.analyze(symbol, indicators, base_url, model)
+        yorum = await llm.analyze(symbol, indicators, base_url, model)
         log.info(f"LLM   | {symbol} | {len(yorum)} karakter")
 
         history.save(symbol, indicators, yorum)
