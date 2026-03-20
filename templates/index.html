@@ -88,6 +88,15 @@ let selectedFile = null;
 lmUrl.value = localStorage.getItem('lmUrl') || 'http://localhost:1234';
 const savedModel = localStorage.getItem('model') || '';
 
+// Kayıtlı modeli select'e ekle (sayfa yenilense de kaybolmasın)
+if (savedModel) {
+  const opt = document.createElement('option');
+  opt.value = savedModel;
+  opt.textContent = savedModel;
+  opt.selected = true;
+  modelSelect.appendChild(opt);
+}
+
 // Parametreleri yükle
 const PARAM_DEFAULTS = {
   rsi_period: 14, bb_period: 20,
