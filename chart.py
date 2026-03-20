@@ -60,8 +60,9 @@ def create_chart(df: pd.DataFrame, symbol: str, params: dict = None) -> str:
         font=dict(color="#eee", size=11),
         xaxis_rangeslider_visible=False,
         legend=dict(orientation="h", y=1.02, x=0),
-        margin=dict(l=10, r=10, t=40, b=10),
+        margin=dict(l=0, r=0, t=40, b=0),
         height=620,
+        autosize=True,
     )
 
     return fig.to_html(full_html=False, include_plotlyjs="cdn", config={"responsive": True})
