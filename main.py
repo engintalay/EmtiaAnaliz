@@ -41,6 +41,7 @@ async def get_models(base_url: str = "http://localhost:1234"):
 
 @app.post("/analyze")
 async def analyze(
+    request: Request,
     symbol: str = Form(...),
     base_url: str = Form("http://localhost:1234"),
     model: str = Form(...),
@@ -48,7 +49,8 @@ async def analyze(
 ):
     raw_input = symbol
     symbol = extract_symbol(symbol)
-    log.info(f"İSTEK | girdi='{raw_input}' → sembol='{symbol}' | model={model} | url={base_url}")
+    client_ip = request.client.host if request.client else "bilinmiyor"
+    log.info(f"İSTEK | ip={client_ip} | girdi='{raw_input}' → sembol='{symbol}' | model={model} | url={base_url}")
 
     try:
         # Veri çek

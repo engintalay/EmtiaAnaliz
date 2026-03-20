@@ -45,7 +45,7 @@ Bu verilere göre detaylı analiz yap ve AL / SAT / BEKLE tavsiyeni açıkla.
     }
 
     try:
-        r = requests.post(f"{base_url}/v1/chat/completions", json=payload, timeout=60)
+        r = requests.post(f"{base_url}/v1/chat/completions", json=payload, timeout=180)
         r.raise_for_status()
         return r.json()["choices"][0]["message"]["content"]
     except Exception as e:
