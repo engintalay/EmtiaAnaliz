@@ -4,7 +4,24 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
 import data_fetcher, technical, chart, llm, history
-import os
+import re, os
+
+# Mesajdan sembol çıkar: "BTC analiz et" → "BTC"
+def extract_symbol(text: str) -> str:
+    text = text.strip().upper()
+    # Bilinen kripto listesi
+    for sym in data_fetcher.CRYPTO_IDS:
+        if re.search(rf'\b{sym}\b', text):
+            return sym
+    # Bilinen takma adlar
+    for sym in data_fetcher.YAHOO_MAP:
+        if re.search(rf'\b{sym}\b', text):
+            return sym
+    # İlk kelime büyük harf ve kısa ise sembol say (AAPL, THYAO vb.)
+    first = text.split()[0]
+    if re.match(r'^[A-Z0-9.=^]{1,10}$', first):
+        return first
+    return text
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -28,7 +45,8 @@ async def analyze(
     model: str = Form(...),
     file: UploadFile = File(None),
 ):
-    # Veri çek
+    # Sembolü mesajdan çıkar
+    symbol = extract_symbol(symbol)
     if file and file.filename:
         content = await file.read()
         df = data_fetcher.fetch_from_csv(content)
