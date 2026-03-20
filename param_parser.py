@@ -26,6 +26,12 @@ def parse_params(text: str, form_params: dict = None) -> dict:
     if m:
         p["bb_period"] = int(m.group(1))
 
+    # Saat: "1 saatlik", "4 saatlik" → günlük veriye çevir (min 1 gün)
+    m = re.search(r'(\d+)\s*SAAT', text_up)
+    if m:
+        p["days"] = max(1, int(m.group(1)) // 24 + 1)
+        p["interval"] = f"{m.group(1)}h"  # ileride kullanım için
+
     # Gün sayısı: "180 gün", "90 günlük", "son 365 gün"
     m = re.search(r'(\d+)\s*GÜN', text_up)
     if m:

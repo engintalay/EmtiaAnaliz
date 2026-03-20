@@ -7,18 +7,22 @@ import data_fetcher, technical, chart, llm, history, param_parser
 from logger import log
 import re, os, json, asyncio
 
+last_symbol = {}  # {"symbol": "BTC"} — son kullanılan sembol
+
 def extract_symbol(text: str) -> str:
-    text = text.strip().upper()
+    text_up = text.strip().upper()
     for sym in data_fetcher.CRYPTO_IDS:
-        if re.search(rf'\b{sym}\b', text):
+        if re.search(rf'\b{sym}\b', text_up):
             return sym
     for sym in data_fetcher.YAHOO_MAP:
-        if re.search(rf'\b{sym}\b', text):
+        if re.search(rf'\b{sym}\b', text_up):
             return sym
-    first = text.split()[0]
-    if re.match(r'^[A-Z0-9.=^]{1,10}$', first):
+    first = text_up.split()[0]
+    # Sadece harf içeren ve 2+ karakter olan kelimeleri sembol say
+    if re.match(r'^[A-Z]{2,10}([.=^][A-Z0-9]+)?$', first):
         return first
-    return text
+    # Sembol bulunamadıysa son kullanılan sembolü döndür
+    return last_symbol.get("symbol", text_up)
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -85,6 +89,7 @@ async def analyze(
         used_params = indicators.pop("params")
         chart_html  = chart.create_chart(df_ind, symbol, used_params)
         param_info  = param_parser.params_summary(used_params)
+        last_symbol["symbol"] = symbol  # bir sonraki istek için hatırla
 
         # Grafik + göstergeler hemen dön — LLM stream ayrı endpoint'ten
         return JSONResponse({
