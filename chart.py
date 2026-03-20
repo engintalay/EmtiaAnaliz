@@ -61,7 +61,7 @@ def create_chart(df: pd.DataFrame, symbol: str, params: dict = None) -> str:
         xaxis_rangeslider_visible=False,
         legend=dict(orientation="h", y=1.02, x=0),
         margin=dict(l=10, r=10, t=40, b=10),
-        height=600,
+        height=620,
     )
 
     return fig.to_html(full_html=False, include_plotlyjs="cdn", config={"responsive": True})
