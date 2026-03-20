@@ -17,8 +17,19 @@
   <!-- Header -->
   <header>
     <span class="logo">📈 EmtiaAnaliz</span>
-    <button id="settingsBtn" title="Ayarlar">⚙️</button>
+    <div class="header-right">
+      <button id="versionBtn" class="version-tag" title="Değişiklik geçmişi"></button>
+      <button id="settingsBtn" title="Ayarlar">⚙️</button>
+    </div>
   </header>
+
+  <!-- Versiyon Paneli -->
+  <div id="versionPanel" style="display:none">
+    <div class="settings-box" id="versionBox">
+      <h3>📋 Değişiklik Geçmişi</h3>
+      <div id="changelogContent"></div>
+    </div>
+  </div>
 
   <!-- Ayarlar Paneli -->
   <div id="settingsPanel" style="display:none">
@@ -87,6 +98,24 @@ const csvBtn    = document.getElementById('csvBtn');
 const csvFile   = document.getElementById('csvFile');
 
 let selectedFile = null;
+
+// Versiyon bilgisi
+const versionBtn   = document.getElementById('versionBtn');
+const versionPanel = document.getElementById('versionPanel');
+
+fetch('/version').then(r => r.json()).then(data => {
+  versionBtn.textContent = `v${data.version}`;
+  const box = document.getElementById('changelogContent');
+  box.innerHTML = data.changelog.map(v =>
+    `<div class="changelog-entry">
+      <b>v${v.version}</b> <span style="color:#888">— ${v.tarih}</span>
+      <ul>${v.degisiklikler.map(d => `<li>${d}</li>`).join('')}</ul>
+    </div>`
+  ).join('');
+}).catch(() => { versionBtn.textContent = 'v?'; });
+
+versionBtn.onclick = () => versionPanel.style.display = versionPanel.style.display === 'flex' ? 'none' : 'flex';
+versionPanel.onclick = e => { if (e.target === versionPanel) versionPanel.style.display = 'none'; };
 
 // Ayarları yükle
 lmUrl.value = localStorage.getItem('lmUrl') || 'http://localhost:1234';

@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
 import data_fetcher, technical, chart, llm, history, param_parser
+from version import VERSION, CHANGELOG
 from logger import log
 import re, os, json, asyncio
 
@@ -146,3 +147,8 @@ async def analyze_stream(
 @app.get("/history")
 async def get_history(symbol: str = None):
     return {"history": history.get_recent(symbol)}
+
+
+@app.get("/version")
+async def get_version():
+    return {"version": VERSION, "changelog": CHANGELOG}
