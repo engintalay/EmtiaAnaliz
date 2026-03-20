@@ -224,7 +224,6 @@ function addAnalysis(data) {
 }
 
 async function streamLLM(symbol, indicators, baseUrl, model, thinking) {
-  // Boş bot mesajı oluştur, token geldikçe doldur
   const msgDiv = document.createElement('div');
   msgDiv.className = 'msg bot';
   msgDiv.textContent = '🤖 ';
@@ -242,6 +241,8 @@ async function streamLLM(symbol, indicators, baseUrl, model, thinking) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buf = '';
+  let fullText = '';
+  let inThink = false;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -256,7 +257,12 @@ async function streamLLM(symbol, indicators, baseUrl, model, thinking) {
       try {
         const obj = JSON.parse(raw);
         if (obj.token) {
-          msgDiv.textContent += obj.token;
+          fullText += obj.token;
+          // <think>...</think> bloğunu gizle
+          const visible = fullText
+            .replace(/<think>[\s\S]*?<\/think>/g, '')
+            .replace(/<think>[\s\S]*/g, '');  // henüz kapanmamış think
+          msgDiv.textContent = '🤖 ' + visible.trimStart();
           chat.scrollTop = chat.scrollHeight;
         }
         if (obj.error) msgDiv.textContent += `\n❌ ${obj.error}`;
